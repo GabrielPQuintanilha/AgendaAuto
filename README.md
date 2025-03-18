@@ -13,6 +13,6 @@ Este projeto faz login em um sistema de agenda, busca pacientes agendados para o
 ### Tecnologias Usadas
 
 - Python
-- Javascript
+- Selenium
 - HTML
   
