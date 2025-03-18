@@ -1,7 +1,9 @@
 # AgendaAuto
 
-Este projeto é feito pensado em um arquivo base .txt no qual manualmente o usuario copiaria uma pagina HTML com a lista de pacientes e horarios. Baseado nesse .txt o programa criaria uma lista com mensagens pré definidas de confirmação das consultas com base no nome e horario da consulta. As mensagens serão customizadas de acordo com sexo do paciente e horário.
+Este projeto faz login em um sistema de agenda, busca pacientes agendados para o dia seguinte e coleta seus dados de contato. Em seguida, gera mensagens de confirmação de consulta com links para WhatsApp. Por fim, cria um arquivo HTML com as informações e links para facilitar a confirmação.
 
 ## Tecnologias Usadas
 
 - Python
+- Javascript
+- HTML
