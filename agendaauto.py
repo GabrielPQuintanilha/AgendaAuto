@@ -9,13 +9,20 @@ from selenium.webdriver.common.keys import Keys
 import os
 import webbrowser
 import requests
+from selenium.webdriver.chrome.options import Options
 
 # --- To do --- #
-#  pegar codigo ao lado do nome do paciente e usar no site "https://doc.doclogos.com/totalkids/pacientes/manipular/XXXX" para pegar telefone
 # 
 # ---       --- #
 diretorio_atual = os.path.dirname(os.path.abspath(__file__))
 caminho_arquivo = os.path.join(diretorio_atual, "output.html")
+
+chrome_options = Options()
+
+# Adicionar a opção de rodar o Chrome em modo headless
+chrome_options.add_argument("--headless")  # Roda o Chrome sem abrir a janela gráfica
+chrome_options.add_argument("--disable-gpu")  # Desativa o uso de GPU, útil para o headless
+chrome_options.add_argument("--no-sandbox")  # Para evitar problemas com o sandbox em alguns sistemas
 
 driver = webdriver.Chrome()
 
@@ -28,26 +35,12 @@ def loginNoSite():
     senha_input = driver.find_element(By.XPATH, "//*[@id='m_login']/div/div/div[2]/form/div[2]/input")
     botao_login = driver.find_element(By.XPATH, "//*[@id='m_login_signin_submit']")
 
-    login_input.send_keys("XXXXX")
-    senha_input.send_keys("XXXXX")
+    login_input.send_keys("XXXX")
+    senha_input.send_keys("XXXX")
     botao_login.click()
 
 def verAgenda():
-
-    WebDriverWait(driver, 60).until(
-        EC.element_to_be_clickable((By.XPATH, "//*[@id='m_aside_left_offcanvas_toggle']"))
-    )
-    botao_abrir_painel = driver.find_element(By.XPATH, "//*[@id='m_aside_left_offcanvas_toggle']")
-
-    botao_abrir_painel.click()
-
-    
-    WebDriverWait(driver, 60).until(
-        EC.element_to_be_clickable((By.XPATH, "//*[@id='m_ver_menu']/ul/li[3]/a"))
-    )
-    botao_verPacientes = driver.find_element(By.XPATH, "//*[@id='m_ver_menu']/ul/li[3]/a")
-
-    botao_verPacientes.click()
+    driver.get("https://doc.doclogos.com/totalkids/agenda")
 
 def selecionarData():
 
@@ -97,54 +90,47 @@ def buscarPacientes():
 
     for i in range(paciente_atual,pacientes_agenda):
 
-        WebDriverWait(driver, 60).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".fc-list-item.m-fc-event--metal"))
-        )
-        pacientes_marcados = driver.find_elements(By.CSS_SELECTOR, ".m-fc-event--metal, .m-fc-event--accent")
-
         for paciente in pacientes_marcados[paciente_atual:paciente_atual+1]:
         
             paciente_horario = paciente.find_element(By.CSS_SELECTOR, ".fc-list-item-time").text
             paciente_horario = horarioCorrigido(paciente_horario)
 
             paciente_nome = paciente.find_element(By.CSS_SELECTOR, ".fc-list-item-title a").text
-            paciente_nome, paciente_ultimo_nome = criarNomeSimplificado(paciente_nome)
+            paciente_nome, paciente_ultimo_nome, paciente_codigo = criarNomeSimplificado(paciente_nome)
+            
+            listaPacientes.append({
+                "horario": paciente_horario,
+                "Primeiro nome": paciente_nome,
+                "Ultimo nome": paciente_ultimo_nome,
+                "Codigo":paciente_codigo
+            })
 
-            botao_info_paciente = paciente.find_element(By.CSS_SELECTOR, ".btn.btn-visualizar-atendimento.btn-info.btn-sm").click()
-
-            buscarContatoPaciente(paciente_nome,paciente_ultimo_nome,paciente_horario)
+            
         
         paciente_atual+=1
 
+    
+    buscarContatoPaciente()
+
+def buscarContatoPaciente():
+    
+    for paciente in listaPacientes:
+
+        driver.get(f"https://doc.doclogos.com/totalkids/pacientes/manipular/{paciente['Codigo']}")        
+        WebDriverWait(driver, 60).until(
+            EC.presence_of_element_located((By.XPATH, "//*[@id='TELEFONE1']"))
+        )
+        contato_paciente = driver.find_element(By.XPATH, "//*[@id='TELEFONE1']").get_attribute('value')
+        contato_paciente = numeroCorrigido(contato_paciente)
+        
+
+        paciente['contato'] = contato_paciente
+
+        print (paciente['horario']+" "+paciente['Primeiro nome']+" "+paciente['Ultimo nome'])
+        print ("Whatsapp: "+ paciente['contato'])
+        print ("")
+        
     print(listaPacientes)
-
-def buscarContatoPaciente(paciente_nome,paciente_ultimo_nome, paciente_horario):
-    
-    WebDriverWait(driver, 60).until(
-        EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/div[1]/div[2]/div[2]/div/div[1]/div/div/ul/li[6]/a/span"))
-    )
-
-    botao_dados_pessoais = driver.find_element(By.XPATH, "/html/body/div[1]/div[1]/div[2]/div[2]/div/div[1]/div/div/ul/li[6]/a/span").click()
-
-    WebDriverWait(driver, 60).until(
-        EC.presence_of_element_located((By.XPATH, "//*[@id='TELEFONE1']"))
-    )
-    contato_paciente = driver.find_element(By.XPATH, "//*[@id='TELEFONE1']").get_attribute('value')
-    contato_paciente = numeroCorrigido(contato_paciente)
-    
-
-    listaPacientes.append({
-        "horario": paciente_horario,
-        "Primeiro nome": paciente_nome,
-        "Ultimo nome": paciente_ultimo_nome,
-        "contato": contato_paciente
-    })
-
-    print (paciente_horario+" "+paciente_nome+" "+paciente_ultimo_nome)
-    print ("Whatsapp: "+contato_paciente)
-    print ("")
-    driver.back()
-    driver.back()
 
 def numeroCorrigido(telefone):
     numero_apenas_digitos = re.sub(r'\D', '', telefone)  # \D corresponde a qualquer caractere não numérico
@@ -168,8 +154,10 @@ def turnoDoDia():
 
 def criarNomeSimplificado(nome):
     nome_parts = nome.split()
+    # Adicionao o codigo ao retorno
+    nome_codigo=nome_parts[-1].replace("(", "").replace(")", "")
     #-1 representa o ultimo nome
-    return nome_parts[0], nome_parts[-2]
+    return nome_parts[0], nome_parts[-2],nome_codigo
 
 def horarioCorrigido(horario):
     horario_errado = horario.split()
